@@ -30,13 +30,23 @@ Phase 1은 scripts/fetch_meals.py, tests/test_fetch_meals.py 및 .github/workflo
 - 전체 탭 54개 중 숨김 47개, 표시 7개였다. 표시 탭 중 무관한 탭은 0개, 빈 주간표는 4개였으며 3개 주간표를 포함했다.
 - 2026-11-16 ~ 2026-12-06의 21일 중 17일에 메뉴가 있고 나머지 4일은 세 식사가 모두 빈 배열이다. 최초 파일의 `schemaVersion`은 1, `updatedAt`은 `2026-11-26T00:29:45.027097+09:00`이다.
 
-현재는 Phase 2로, GitHub 연동 및 자동 업데이트를 검증한다. GitHub Actions에서 실제 다운로드·커밋·푸시는 아직 검증하지 않았으며 GitHub Pages는 미설정이다.
+Phase 2에서 학교의 자동 추출·공개 재배포 허용을 확인했다. GitHub Actions 수동 실행으로 GitHub 서버의 실제 다운로드·파싱, 최초 JSON 생성, 자동 커밋·푸시(`99e848d`)를 검증했다. 사용자 브라우저에서 Raw JSON 접근에 성공했다. 30분 주기 예약은 설정했으며 실제 예약 실행 기록은 미확인이다. GitHub Pages는 미설정이다.
+
+## Phase 3 앱 구현
+
+- 기존 `app/`의 Android·iOS·Web 프로젝트를 사용한다. Flutter 3.32.8, Dart 3.8.1, http 1.6.0, shared_preferences 2.5.3, flutter_lints 5.0.0 및 SDK의 flutter_test를 기준으로 한다.
+- 공통 데이터 URL은 [GitHub Raw 급식표](https://raw.githubusercontent.com/wkreho/geubsik/main/data/meals.json)이다. 앱은 `MealRepository`를 통해 UTF-8 JSON을 읽고 `MealSnapshot`·`DailyMeals`로 검증한다. 수집기는 독립적으로 운영한다.
+- 한국 날짜는 `KoreaDate`로 계산한다. 시각을 UTC+09:00 기준 날짜로 변환한 후 달력 날짜끼리 이동한다. 메뉴 미등록과 날짜 미포함을 구분한다.
+- `MealController`(ChangeNotifier)가 유효한 캐시를 먼저 표시하고 중복 요청을 합친다. 검증한 응답은 빈 스냅샷도 포함해 전체 교체하고 `SharedPreferencesAsync`에 저장한다. 잘못된 응답은 캐시를 보존하고, 저장 실패 시에도 원격 데이터를 표시한다.
+- 임시 화면과 오프라인 테스트를 구현했다. `app/`에서 `flutter analyze --no-pub`, `flutter test --no-pub`로 검증하고 `flutter run -d chrome --no-pub`로 실행한다. 실제 Flutter Web CORS·브라우저 캐시 동작은 별도 확인한다.
+
+2026-11-26 Phase 3 코드는 작성·포맷했다. Codex 환경에서 Flutter 시작 스크립트가 쓰는 SDK 캐시 잠금 파일은 쓰기 허용 범위 밖에 있다. 정적 분석 명령은 결과 없이 중단했으며 전체 Flutter 테스트는 실행하지 않았다. 사용자 PowerShell 검증 결과를 받으면 갱신한다.
 
 ## 이후 개발 방향
 
-하나의 Flutter/Dart 프로젝트에서 모바일 앱과 Flutter Web을 구현하고 웹은 GitHub Pages에 배포할 계획이다. 메인 화면은 오늘 표시, 날짜·요일, 이전/다음 화살표와 달력 선택, 아침·점심·저녁 아이콘과 카드, 미등록 안내와 마지막 갱신 시각을 담는다. 하단 탭은 ‘오늘’과 ‘급식표’ 두 개다. 설정 탭은 만들지 않는다. 급식표는 여러 날을 세로로 보여 주며 조회 범위는 미정이다. 최근 데이터의 오프라인 캐싱도 후속 과제다.
+Phase 4에서 최종 UI를 구현한다. 메인 화면은 오늘 표시, 날짜·요일, 이전/다음 화살표와 달력 선택, 아침·점심·저녁 아이콘과 카드, 미등록 안내와 마지막 갱신 시각을 담는다. 하단 탭은 ‘오늘’과 ‘급식표’ 두 개다. 설정 탭은 만들지 않는다. 급식표는 여러 날을 세로로 보여 주며 조회 범위는 미정이다.
 
-GitHub Pages는 미설정이다. Flutter Web 빌드와 최신 JSON의 배포 경로, 모바일·웹 공통 공개 URL, 앱 재빌드 없는 데이터 갱신, Pages와 브라우저 캐시 정책을 후속 단계에서 정한다. GITHUB_TOKEN 커밋에 의존하는 후속 push 워크플로·브랜치 기반 Pages 빌드는 실행되지 않을 수 있다. 예약 수집도 지연·비활성화될 수 있다. 학교 측 자동 추출·재배포 승인을 확인하기 전 공개 푸시·배포하지 않는다.
+Flutter Web 빌드·Pages 배포와 브라우저 캐시 정책을 후속 단계에서 검증한다. GITHUB_TOKEN 커밋에 의존하는 후속 push 워크플로·브랜치 기반 Pages 빌드는 실행되지 않을 수 있다. 예약 수집도 지연·비활성화될 수 있다.
 
 ## 협업
 

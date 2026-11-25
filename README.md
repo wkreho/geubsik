@@ -6,7 +6,7 @@
 
 로컬 작업 경로는 `C:\Users\SEC\Documents\GitHub\geubsik`, 현재 브랜치는 `main`이다. [GitHub 저장소](https://github.com/wkreho/geubsik)
 
-Phase 1의 로컬 구현과 검증을 완료했다. 현재는 Phase 2로, GitHub 연동과 급식 데이터 자동 갱신을 검증하는 단계다. GitHub Actions의 실제 네트워크 연결과 자동 갱신은 아직 검증하지 않았고 GitHub Pages는 미설정이다. 이후 하나의 Flutter/Dart 프로젝트로 모바일 앱과 Flutter Web을 개발하고 웹은 GitHub Pages에 배포할 예정이다. 상시 서버와 데이터베이스 없이 Git/GitHub 및 JSON을 사용한다.
+Phase 1의 로컬 수집 검증과 Phase 2의 GitHub Actions 수동 실행 검증을 완료했다. Phase 3에서는 `app/`의 Flutter 앱이 GitHub Raw에서 급식표를 읽고 기기에 저장하는 기능과 임시 확인 화면을 구현했다. Phase 4에서 최종 UI를 구현할 예정이다. GitHub Pages는 미설정이다.
 
 ### 2026-11-26 로컬 검증 결과
 
@@ -81,11 +81,11 @@ Linux에서는 python3.12 -m venv .venv로 환경을 만들고 위 명령의 실
 
 기존 JSON에 문법 오류·중복 키·잘못된 스키마가 있으면 자동 복구하지 않는다. 담당자가 백업이나 Git에서 정상 파일을 복원한 뒤 갱신하거나, 손상본을 별도 보관한 뒤 새로 수집할 수 있다.
 
-## GitHub 자동화와 공개 전 확인
+## GitHub 자동화
 
-학교 측의 자동 추출 및 공개 재배포 허용 여부를 먼저 확인한다. 모바일·웹 공통 데이터 URL은 아직 정해지지 않았다.
+학교의 자동 추출·공개 재배포 허용을 확인하고 공개 저장소에서 워크플로를 활성화했다. 수동 실행으로 GitHub 서버에서 실제 XLSX를 추출하고 최초 JSON을 자동 커밋·푸시했다(`99e848d`). 실행 결과는 3개 주간표, 21일, 메뉴가 있는 날 17일이었다. 사용자가 브라우저에서 원격 JSON을 확인했다. [모바일·웹 공통 급식 JSON](https://raw.githubusercontent.com/wkreho/geubsik/main/data/meals.json)
 
-프로젝트 폴더는 원격 저장소에 연결되어 있다. 공개 범위를 결정한 뒤 기본 브랜치에 코드를 반영하고 Actions 활성화 여부와 기본 GITHUB_TOKEN의 쓰기 권한을 확인한다. GitHub Pages는 미설정이다.
+30분 주기 예약은 설정했으며 실제 예약 실행 기록은 아직 확인하지 않았다.
 
 - 예약 실행은 기본 브랜치에서 UTC 매시 7분·37분이다. 부하에 따라 지연될 수 있으며 공개 저장소가 60일간 비활성 상태면 예약이 비활성화될 수 있다.
 - 수동 실행은 저장소의 Actions → Update meal data → Run workflow에서 대상 브랜치를 선택한다. 워크플로가 기본 브랜치에 있어야 한다.
@@ -93,10 +93,24 @@ Linux에서는 python3.12 -m venv .venv로 환경을 만들고 위 명령의 실
 
 [GitHub 예약 및 수동 실행 문서](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)
 
-## Flutter Web과 데이터 배포 계획
+## Flutter 앱 실행과 데이터 흐름
 
-모바일과 웹이 앱 재빌드 없이 동일한 공개 JSON URL에서 최신 데이터를 가져오도록 설계할 예정이다. Flutter Web 빌드 결과와 JSON을 함께 제공할 경로, 데이터만 바뀐 경우의 배포 절차, Pages·브라우저 캐시의 재검증 방식 및 앱의 오프라인 캐싱 정책은 후속 단계에서 결정한다.
+Android·iOS·Web은 기존 `app/` 프로젝트를 공유한다. Flutter 3.32.8 stable, Dart 3.8.1, `http` 1.6.0, `shared_preferences` 2.5.3, `flutter_lints` 5.0.0을 사용한다. 의존성이 설치된 상태에서 저장소 루트의 PowerShell로 실행한다.
 
-기본 GITHUB_TOKEN으로 푸시한 커밋은 일반적인 후속 push 워크플로나 브랜치 기반 Pages 빌드를 트리거하지 않는다. 데이터 갱신 워크플로에서 직접 배포를 연결하거나 별도 데이터 제공 경로를 마련해야 한다. 실제 Pages 배포는 이번 단계에 포함되지 않는다.
+~~~powershell
+cd app
+flutter run -d chrome --no-pub
+~~~
+
+- `MealRepository`는 시작 시 공통 URL로 GET 요청을 보낸다. 제한 시간은 12초이며 수동 갱신은 쿼리가 붙은 URL을 사용한다. 브라우저의 실제 CORS·캐시 동작은 확인이 필요하다.
+- `MealSnapshot`과 `DailyMeals`는 UTF-8 응답의 버전, 변경 시각, 달력 날짜와 세 식사의 배열을 검증한다. `KoreaDate`는 UTC에 9시간을 더해 한국의 오늘을 구하고 달력 날짜끼리 이동·비교한다. 날짜가 누락된 경우와 등록된 날짜의 빈 메뉴를 구분한다.
+- `MealController`는 ChangeNotifier로 캐시를 먼저 표시하고 원격 요청을 진행한다. 겹치는 갱신 요청은 하나로 합친다. 성공하면 빈 스냅샷까지 포함해 검증된 JSON 전체를 `SharedPreferencesAsync`로 교체한다. 요청 실패 시 기존 급식표를 표시하고, 저장 실패 시에도 받은 메뉴를 볼 수 있다.
+- 임시 화면에서 날짜 이동·오늘 복귀, 세 식사, 데이터 변경 시각·출처, 수동 갱신과 재시도를 확인할 수 있다. 정적 분석과 오프라인 테스트는 각각 `app/`에서 `flutter analyze --no-pub`, `flutter test --no-pub`로 실행한다.
+
+Phase 3 검증 상태(2026-11-26): Dart 파일 포맷을 완료했다. Codex의 쓰기 허용 범위 밖에 있는 Flutter SDK 캐시 잠금 파일 때문에 정적 분석 명령이 결과를 내지 못해 중단했다. Flutter 테스트 13개는 작성했으며 실행 결과는 아직 없다. 사용자 PowerShell에서 위 분석·테스트 명령으로 확인할 수 있다.
+
+## Flutter Web 배포 계획
+
+앱은 공통 Raw URL에서 데이터를 받으므로 메뉴 갱신 때 앱을 재빌드할 필요가 없다. 기본 GITHUB_TOKEN으로 푸시한 커밋은 일반적인 후속 push 워크플로나 브랜치 기반 Pages 빌드를 트리거하지 않는다. Flutter Web 빌드·배포 방식은 후속 단계에서 결정한다.
 
 [GitHub 워크플로 트리거](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow) · [Pages 게시 소스](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
