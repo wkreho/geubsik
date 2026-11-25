@@ -1,0 +1,41 @@
+name: Update meal data
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-meals-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: python scripts/fetch_meals.py
+      - name: Commit and push changed meal data
+        shell: bash
+        run: |
+          git add -- data/meals.json
+          if git diff --cached --quiet -- data/meals.json; then
+            echo "급식 데이터 변경 없음"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --only -m "chore: update meal data" -- data/meals.json
+          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
