@@ -3,6 +3,10 @@ class KoreaDate implements Comparable<KoreaDate> {
   const KoreaDate._(this._day);
 
   final DateTime _day;
+  DateTime get calendar => _day;
+  factory KoreaDate.ymd(int year, int month, int day) =>
+      KoreaDate._(DateTime.utc(year, month, day));
+  KoreaDate shift(int days) => KoreaDate._(_day.add(Duration(days: days)));
 
   factory KoreaDate.today([DateTime? instant]) {
     final korea = (instant ?? DateTime.now()).toUtc().add(

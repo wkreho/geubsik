@@ -6,7 +6,7 @@
 
 ## 현재 구현
 
-Phase 1은 scripts/fetch_meals.py, tests/test_fetch_meals.py 및 .github/workflows/update-meals.yml에 들어 있다. Python 3.12가 공개 XLSX를 인증 없이 읽고 openpyxl로 분석한다. 결과 파일 data/meals.json은 정상 수집 시 생성한다. 워크플로는 UTC 매시 7분·37분 또는 수동으로 실행하며 변경된 JSON만 기본 토큰으로 푸시한다. 로컬 구현과 실제 GitHub 실행·Pages 배포를 구분한다.
+Phase 1은 `scripts/fetch_meals.py`, `tests/test_fetch_meals.py`, `.github/workflows/update-meals.yml`에 들어 있다. Python 3.12가 공개 XLSX를 인증 없이 읽고 openpyxl로 분석한다. 워크플로는 `workflow_dispatch`로 실행하며 정상 수집 후 변경된 JSON만 기본 토큰으로 푸시한다.
 
 원본은 [HIS 식단표 2026](https://docs.google.com/spreadsheets/d/1-H15GqsbE3APbGec7rNbw7_Cvm1UBq4mQpVF-Nw_74c)이다. ID는 1-H15GqsbE3APbGec7rNbw7_Cvm1UBq4mQpVF-Nw_74c, 내보내기 경로는 /export?format=xlsx 이다. 원본은 읽기 전용이며 XLSX 전체를 저장소에 남기지 않는다.
 
@@ -30,7 +30,7 @@ Phase 1은 scripts/fetch_meals.py, tests/test_fetch_meals.py 및 .github/workflo
 - 전체 탭 54개 중 숨김 47개, 표시 7개였다. 표시 탭 중 무관한 탭은 0개, 빈 주간표는 4개였으며 3개 주간표를 포함했다.
 - 2026-11-16 ~ 2026-12-06의 21일 중 17일에 메뉴가 있고 나머지 4일은 세 식사가 모두 빈 배열이다. 최초 파일의 `schemaVersion`은 1, `updatedAt`은 `2026-11-26T00:29:45.027097+09:00`이다.
 
-Phase 2에서 학교의 자동 추출·공개 재배포 허용을 확인했다. GitHub Actions 수동 실행으로 GitHub 서버의 실제 다운로드·파싱, 최초 JSON 생성, 자동 커밋·푸시(`99e848d`)를 검증했다. 사용자 브라우저에서 Raw JSON 접근에 성공했다. 30분 주기 예약은 설정했으며 실제 예약 실행 기록은 미확인이다. GitHub Pages는 미설정이다.
+Phase 2에서 학교의 자동 추출·공개 재배포 허용을 확인했다. GitHub Actions 수동 실행으로 실제 다운로드·파싱, 최초 JSON 자동 커밋·푸시(`99e848d`)를 검증했다. 내장 schedule에 실행 기록이 생성되지 않아 cron-job.org의 30분 주기 POST → `workflow_dispatch`로 전환했다. 사용자가 외부 예약 활성화와 TEST RUN HTTP 200을 확인했다. Fine-grained PAT는 해당 저장소의 Actions 읽기·쓰기 및 필수 Metadata 읽기로 제한하고 만료 전에 교체한다. 실패 시 외부 서비스의 요청 기록·대상 브랜치·권한·만료를 확인한 후 Actions 로그를 확인한다. 인증값을 조회하거나 기록하지 않는다.
 
 ## Phase 3 앱 구현
 
@@ -38,17 +38,21 @@ Phase 2에서 학교의 자동 추출·공개 재배포 허용을 확인했다. 
 - 공통 데이터 URL은 [GitHub Raw 급식표](https://raw.githubusercontent.com/wkreho/geubsik/main/data/meals.json)이다. 앱은 `MealRepository`를 통해 UTF-8 JSON을 읽고 `MealSnapshot`·`DailyMeals`로 검증한다. 수집기는 독립적으로 운영한다.
 - 한국 날짜는 `KoreaDate`로 계산한다. 시각을 UTC+09:00 기준 날짜로 변환한 후 달력 날짜끼리 이동한다. 메뉴 미등록과 날짜 미포함을 구분한다.
 - `MealController`(ChangeNotifier)가 유효한 캐시를 먼저 표시하고 중복 요청을 합친다. 검증한 응답은 빈 스냅샷도 포함해 전체 교체하고 `SharedPreferencesAsync`에 저장한다. 잘못된 응답은 캐시를 보존하고, 저장 실패 시에도 원격 데이터를 표시한다.
-- 임시 화면과 오프라인 테스트를 구현했다. `app/`에서 `flutter analyze --no-pub`, `flutter test --no-pub`로 검증하고 `flutter run -d chrome --no-pub`로 실행한다. 실제 Flutter Web CORS·브라우저 캐시 동작은 별도 확인한다.
+- 사용자가 Phase 3 정적 분석 및 Flutter 테스트 13개 통과, 실제 Chrome 원격 데이터·날짜 이동·갱신·오프라인 캐싱을 확인했다.
 
-2026-11-26 Phase 3 코드는 작성·포맷했다. Codex 환경에서 Flutter 시작 스크립트가 쓰는 SDK 캐시 잠금 파일은 쓰기 허용 범위 밖에 있다. 정적 분석 명령은 결과 없이 중단했으며 전체 Flutter 테스트는 실행하지 않았다. 사용자 PowerShell 검증 결과를 받으면 갱신한다.
+## Phase 4 화면과 설정
 
-## 이후 개발 방향
+오늘·급식표·설정 탭은 같은 `MealController`를 사용한다. 오늘은 모바일 세로·넓은 화면 가로 식사 카드로 표시한다. 여러 날짜는 기간별 목록에서 펼치거나 날짜 상세로 이동한다. 한국 날짜가 바뀌면 오늘을 갱신한다.
 
-Phase 4에서 최종 UI를 구현한다. 메인 화면은 오늘 표시, 날짜·요일, 이전/다음 화살표와 달력 선택, 아침·점심·저녁 아이콘과 카드, 미등록 안내와 마지막 갱신 시각을 담는다. 하단 탭은 ‘오늘’과 ‘급식표’ 두 개다. 설정 탭은 만들지 않는다. 급식표는 여러 날을 세로로 보여 주며 조회 범위는 미정이다.
+설정 기본값은 시스템 테마, 회색 배경, 세 식사 모두, 전체 메뉴, 괄호 숨김 켜짐, 빈 날짜 숨김 꺼짐, 오늘부터 7일이다. 설정과 기간은 급식 캐시와 다른 키에 저장한다. 특식·대표 메뉴·괄호 가공은 표시 계층에서만 수행한다. 달력의 활성 여부는 원본 전체 식사를 기준으로 하며 오늘은 예외다. 빈 날짜 숨김은 급식표 탭에서만 선택 식사에 적용한다.
 
-Flutter Web 빌드·Pages 배포와 브라우저 캐시 정책을 후속 단계에서 검증한다. GITHUB_TOKEN 커밋에 의존하는 후속 push 워크플로·브랜치 기반 Pages 빌드는 실행되지 않을 수 있다. 예약 수집도 지연·비활성화될 수 있다.
+`app/`에서 `flutter analyze --no-pub` 통과 후 `flutter test --no-pub`를 실행하고 `flutter run -d chrome --no-pub`로 확인한다. 실제 UI의 좁은 폭·다크 모드·오프라인·재실행 설정 복원을 검증한다. Phase 5 배포와 Pages 설정은 미진행이다.
 
 ## 협업
+
+Phase 4 최초 구현은 사용자가 중괄호 린트를 수정한 뒤 정적 분석과 Flutter 테스트 20/20개를 통과했다. Chrome에서 모바일·데스크톱 크기의 오늘·급식표·설정·캘린더 화면을 확인했다.
+
+Phase 4-2에서는 표시 계층에서 첫 실제 항목의 메뉴 줄을 판별하고 공통 테마의 대표 메뉴 스타일을 사용한다. 특식 안내는 별도 스타일을 유지한다. 급식표 접힘 행은 식사 아이콘·이름·대표 메뉴를 함께 표시하며 추가 메뉴가 있으면 해당 행에서 펼친다. 오늘 카드와 설정 간격 및 날짜 제목 폭을 조정했다. 동일한 SDK 쓰기 제한으로 이번 변경의 분석·전체 테스트와 Chrome 화면은 사용자 PowerShell 검증이 필요하다.
 
 일반 ChatGPT는 기획·요구사항·기술 검토·프롬프트 작성·결과 검토를 맡고 Codex는 로컬 구현·파일 관리·검증·결과 보고를 맡는다. 해당 단계에 필요한 파일만 확인하고 기존 사용자 작업을 보존한다. 앱 기능이나 미정인 배포 방식을 임의로 확정하지 않는다.
 
