@@ -2,6 +2,8 @@
 
 한동글로벌학교 학생이 오늘의 아침·점심·저녁을 바로 확인하는 모바일 앱과 웹을 만든다. 학교가 평소처럼 주간 식단표를 수정하면 수집기가 최신 JSON을 만든다. 학생이나 운영자가 메뉴를 다시 입력할 필요가 없다.
 
+[웹에서 급식 보기](https://wkreho.github.io/geubsik/) · [최신 Android APK 다운로드](https://github.com/wkreho/geubsik/releases/latest/download/geubsik.apk) · [버전별 배포 및 업데이트 내역](https://github.com/wkreho/geubsik/releases)
+
 ## 현재 단계와 구성
 
 로컬 작업 경로는 `C:\Users\SEC\Documents\GitHub\geubsik`, 현재 브랜치는 `main`이다. [GitHub 저장소](https://github.com/wkreho/geubsik)
@@ -70,6 +72,8 @@ Linux에서는 python3.12 -m venv .venv로 환경을 만들고 위 명령의 실
 테스트는 임시 폴더와 코드로 만든 워크북을 사용한다. 실제 수집 로그에는 탭·날짜 집계, 날짜 범위, 저장 여부가 표시된다.
 
 ## 실패 및 전체 빈 결과
+
+학교가 식단표 양식을 바꾸면 `update-meals.yml`의 실패 로그와 마지막 정상 JSON을 확인한다. 문제가 생긴 주간 탭에서 날짜 머리글, 식사 구분 행, 공통 안내 시작 위치를 위 파싱 규칙과 대조한다. 바뀐 양식으로 회귀 테스트를 만든 뒤 수집기를 수정하고, 오프라인 테스트와 실제 추출 결과의 날짜·메뉴를 확인한다.
 
 다운로드나 주간표 검증이 실패하거나 날짜가 겹치면 실행이 실패하고 기존 파일은 유지된다. 표시된 주간표가 모두 사라진 경우에도 원인을 판별할 수 없어 종료한다. 검증된 결과만 같은 폴더에 임시 파일로 완성한 뒤 원자적으로 교체한다. 처음 수집에 실패하면 예시 JSON을 만들지 않는다.
 
@@ -163,7 +167,17 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
 & "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.0.0\apksigner.bat" verify --verbose --print-certs .\build\app\outputs\flutter-apk\app-release.apk
 ```
 
-`Verifies`와 종료 코드 0을 확인하고, 출력된 서명자 인증서 SHA-256 지문을 배포용 인증서 지문과 대조한다. 첫 배포 버전은 `app/pubspec.yaml`의 `1.0.0+1`이다. 후속 업데이트는 동일한 applicationId와 서명키를 사용하고 `+` 뒤의 Android versionCode를 이전 배포보다 높인다. 현재 서명 구성과 Git 제외 규칙은 정적으로 확인했으며, 실제 APK 빌드·서명 검증·기기 설치는 아직 수행하지 않았다.
+`Verifies`와 종료 코드 0을 확인하고 서명자 인증서 SHA-256 지문을 배포용 지문과 대조한다. 공개한 v1.0.0(`1.0.0+1`, 약 20.5MB)은 사용자가 v1·v2 서명 검증, 지문 일치, 실제 스마트폰 설치와 앱 동작을 확인했다.
+
+**다음 Android 릴리스 절차**
+
+1. APK 공개 배포 때 `app/pubspec.yaml`의 versionName과 versionCode를 함께 높인다(예: `1.0.1+2`). 웹만 배포할 때는 기존 버전을 유지한다. 설치된 앱이 업데이트될 수 있도록 `com.wkreho.geubsik`와 기존 배포 서명키를 유지한다.
+2. 의존성 설치 후 위 명령으로 Universal APK를 빌드하고 서명·지문을 대조한다. 이번에 지정한 NDK `27.0.12077973`에서 빌드가 성공하고 기존 NDK 불일치 경고가 사라지는지 확인한다. 실제 기기에 이전 공개 버전을 설치한 상태에서 업데이트와 앱 동작을 확인한다.
+3. GitHub Releases에 새 버전 태그로 Release를 만들고 검증한 APK를 `geubsik.apk`라는 이름으로 첨부한다. 이전 Release와 첨부 파일은 보존한다. 새 버전을 최신 정식 Release로 공개한 뒤 상단의 최신 APK 링크를 눌러 파일명을 확인한다. APK는 Release에만 첨부한다.
+
+설정 하단의 **앱 정보**에서 소스 코드 및 업데이트 내역을 열 수 있다. 웹에서는 **Android 앱 다운로드**도 표시한다. 이번 변경은 공개된 v1.0.0 APK에 포함되지 않는다. 실제 브라우저 다운로드는 미검증이며, NDK 변경은 다음 Android 빌드에서 검증한다.
+
+사용자의 Phase 5-8 검증에서 Flutter 정적 분석은 통과했고, 테스트는 21개 통과·1개 실패였다. 실패한 테스트는 800×600 화면 밖의 링크를 탭해 호출 기록이 비었다. Phase 5-8-1에서 두 링크의 탭 가능 여부와 호출 횟수를 먼저 확인하도록 테스트를 수정했다. 수정 후 Flutter 분석·테스트는 SDK 캐시 쓰기 제한으로 재실행하지 않았다.
 
 ## Flutter Web 배포
 
@@ -175,6 +189,6 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
 4. 빌드된 HTML의 base href와 진입 파일·리소스를 검사하고 `app/build/web`의 내용만 Pages artifact로 업로드한다. 성공하면 `deploy` 작업이 `github-pages` 환경에 게시한다. 빌드 결과물은 Git에서 제외하며 별도의 배포 브랜치나 PAT가 필요하지 않다.
 5. 첫 배포 후 Actions의 배포 URL을 열어 페이지를 새로고침하고 아이콘·화면·급식 데이터가 로드되는지 확인한다. 로컬 release 빌드는 선택 사항이다.
 
-서비스 워커의 앱 사전 캐싱은 끈다. 이미 열린 앱은 원격 요청 실패 시 정상 급식 캐시를 표시할 수 있다. 오프라인에서 웹사이트를 처음 여는 기능은 보장하지 않는다. Pages·GitHub Raw의 HTTP 캐시 때문에 앱 코드나 메뉴 변경이 늦게 보일 수 있다. Android APK와 iOS 앱 배포는 후속 단계다.
+서비스 워커의 앱 사전 캐싱은 끈다. 이미 열린 앱은 원격 요청 실패 시 정상 급식 캐시를 표시할 수 있다. 오프라인에서 웹사이트를 처음 여는 기능은 보장하지 않는다. Pages·GitHub Raw의 HTTP 캐시 때문에 앱 코드나 메뉴 변경이 늦게 보일 수 있다. iOS 앱 배포는 후속 단계다.
 
 [GitHub Pages 배포 워크플로 문서](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)

@@ -57,7 +57,7 @@ Phase 4-2에서는 표시 계층에서 첫 실제 항목의 메뉴 줄을 판별
 - `.github/workflows/deploy-web.yml`은 `main`의 `app/**` 또는 워크플로 자체가 변경될 때 실행한다. 수동 배포는 **Actions → Deploy Flutter Web → Run workflow → main**에서 실행한다. 저장소 관리자가 **Settings → Pages → Source → GitHub Actions**를 설정한다.
 - Ubuntu 빌드 작업은 Flutter 3.32.8 stable과 `app/pubspec.lock`을 사용한다. `--base-href /geubsik/`로 빌드하며 원본 HTML에는 Flutter 플레이스홀더를 유지한다. 빌드 결과 검사 후 `app/build/web`만 artifact로 전달하고 배포 작업이 `github-pages`에 게시한다. 빌드 결과물은 커밋하지 않는다. [급식 웹사이트](https://wkreho.github.io/geubsik/)
 - 급식 수집 워크플로·외부 예약과 웹 배포를 독립적으로 유지한다. 앱은 기존 Raw URL로 데이터를 조회한다. `--pwa-strategy=none`을 사용하며 실행 중 급식 캐시와 오프라인 웹 시작을 구분한다. Pages와 Raw의 HTTP 캐시로 변경 반영이 늦어질 수 있다.
-- Phase 5-1 Pages 배포와 실제 사이트 접속은 사용자가 확인했다. Android APK·iOS 배포는 후속 단계다.
+- Phase 5-1 Pages 배포와 실제 사이트 접속은 사용자가 확인했다. iOS 배포는 후속 단계다.
 
 ## Phase 5-2 급식표 식사 행
 
@@ -75,7 +75,15 @@ Phase 4-2에서는 표시 계층에서 첫 실제 항목의 메뉴 줄을 판별
 - 사용자가 생성한 전용 JKS는 저장소 밖에 보관한다. 사용자가 `app/android/key.properties.example`을 같은 폴더의 `key.properties`로 복사해 두 비밀번호를 직접 입력한다. 실제 설정 파일·서명키는 Git에서 제외하고 비밀번호를 코드·로그·문서·GitHub Secrets에 남기지 않는다.
 - Android 앱 모듈의 Kotlin DSL은 Release에 전용 서명 구성을 연결한다. 필수 설정이 없으면 Release APK 패키징이 실패한다. Android Debug와 GitHub Pages 웹 빌드에는 Release 서명 정보가 필요 없다.
 - `app/`에서 `flutter build apk --release --no-pub`로 Universal APK를 생성한다. 저장소 기준 출력 경로는 `app/build/app/outputs/flutter-apk/app-release.apk`다. 배포 전 README의 `apksigner verify --verbose --print-certs` 명령으로 서명과 인증서를 확인한다.
-- 첫 배포는 `1.0.0+1`이다. 이후 업데이트에는 같은 applicationId와 서명키를 사용하고 `app/pubspec.yaml`에서 versionCode를 올린다. Phase 5-4에서는 구성만 정적으로 검토했으며 실제 APK 빌드·서명 검증·설치는 미확인이다.
+- 첫 공개 버전은 v1.0.0(`1.0.0+1`, 약 20.5MB)이다. 사용자가 Universal APK 빌드, v1·v2 서명 검증, 배포용 SHA-256 지문 대조와 실제 스마트폰 설치·기능 검증을 완료했다.
+
+## APK 다운로드 및 유지보수
+
+- 설정의 앱 정보는 확정 아이콘을 사용한다. 모든 플랫폼에서 Releases로 연결하고 APK 링크는 웹에서만 표시한다. [운영 웹사이트](https://wkreho.github.io/geubsik/) · [GitHub Releases](https://github.com/wkreho/geubsik/releases) · [최신 APK](https://github.com/wkreho/geubsik/releases/latest/download/geubsik.apk)
+- 다음 Android 공개 배포 시 `app/pubspec.yaml`의 versionName과 versionCode를 모두 높인다. 웹만 변경할 때는 올리지 않는다. 동일한 applicationId `com.wkreho.geubsik`와 비공개 배포키로 수동 빌드·서명 검증 후 실기기 업데이트를 확인한다. 매 버전 새 태그와 Release를 만들고 `geubsik.apk`를 첨부해 최신 정식 Release로 지정한다. 이전 첨부 파일은 보존하고 APK를 main이나 웹 빌드에 포함하지 않는다.
+- Android NDK는 `shared_preferences_android` 요구 버전인 `27.0.12077973`으로 지정했다. 다음 Android 빌드에서 경고 해소를 확인한다. 실제 브라우저 다운로드는 미검증이다.
+- Phase 5-8 사용자 검증에서 정적 분석은 통과했고 테스트는 21개 통과·1개 실패였다. Phase 5-8-1에서 설정 링크 테스트가 각 링크를 실제로 탭할 수 있을 때까지 스크롤하고 호출 횟수를 확인한 뒤 URL을 검사하도록 수정했다. 수정 후 Flutter 분석·테스트는 SDK 캐시 쓰기 제한으로 재실행하지 않았다.
+- 급식 갱신 실패 시 cron-job.org 요청과 Actions 로그부터 확인한다. 학교 양식이 바뀌면 주간 날짜·식사 경계·안내문 위치를 대조하고 변경 사례를 재현하는 테스트를 추가한 뒤 파서를 수정한다. 정상 JSON은 보존하고 검증 후 갱신한다.
 
 ## 협업
 

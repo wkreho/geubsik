@@ -1,10 +1,40 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../controllers/settings_controller.dart';
 import '../models/app_settings.dart';
 
+const _releasesUrl = 'https://github.com/wkreho/geubsik/releases';
+const _apkUrl = '$_releasesUrl/latest/download/geubsik.apk';
+
+Future<bool> _openInBrowser(Uri url) =>
+    launchUrl(url, mode: LaunchMode.externalApplication);
+
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key, required this.controller});
+  const SettingsScreen({
+    super.key,
+    required this.controller,
+    this.openLink = _openInBrowser,
+  });
   final SettingsController controller;
+  final Future<bool> Function(Uri) openLink;
+
+  Future<void> _openLink(BuildContext context, String url) async {
+    try {
+      if (await openLink(Uri.parse(url))) {
+        return;
+      }
+    } on Exception {
+      // Some platforms throw when they cannot hand the link to a browser.
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('링크를 열 수 없습니다. 잠시 후 다시 시도해 주세요.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = controller.value;
@@ -161,6 +191,33 @@ class SettingsScreen extends StatelessWidget {
             label: const Text('기본 설정으로 초기화'),
           ),
         ),
+        const SizedBox(height: 20),
+        section('앱 정보', [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Image.asset(
+              'branding/app_icon.png',
+              width: 48,
+              height: 48,
+              excludeFromSemantics: true,
+            ),
+            title: const Text('급식'),
+            subtitle: const Text('한동글로벌학교 학생이 개인 프로젝트로 만든 급식표 앱입니다.'),
+          ),
+          if (kIsWeb)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.download_outlined),
+              title: const Text('Android 앱 다운로드'),
+              onTap: () => _openLink(context, _apkUrl),
+            ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.open_in_new),
+            title: const Text('소스 코드 및 업데이트 내역'),
+            onTap: () => _openLink(context, _releasesUrl),
+          ),
+        ]),
       ],
     );
   }

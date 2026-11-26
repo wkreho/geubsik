@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geubsik/controllers/meal_controller.dart';
 import 'package:geubsik/controllers/settings_controller.dart';
 import 'package:geubsik/repositories/meal_repository.dart';
 import 'package:geubsik/screens/meal_shell.dart';
+import 'package:geubsik/screens/settings_screen.dart';
 import 'package:geubsik/models/app_settings.dart';
 import 'package:geubsik/theme/app_theme.dart';
 import 'package:geubsik/widgets/meal_panel.dart';
@@ -42,6 +44,56 @@ Future<void> show(
 }
 
 void main() {
+  testWidgets('설정의 APK 링크는 웹 전용이며 외부 링크 실패 후에도 설정이 유지된다', (tester) async {
+    final opened = <Uri>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsScreen(
+            controller: SettingsController(_Storage()),
+            openLink: (url) async {
+              opened.add(url);
+              return false;
+            },
+          ),
+        ),
+      ),
+    );
+    Future<void> tapLink(Finder link) async {
+      final target = link.hitTestable();
+      await tester.scrollUntilVisible(target, 180);
+      await tester.pumpAndSettle();
+      expect(target, findsOneWidget);
+      final previousCalls = opened.length;
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+      expect(opened, hasLength(previousCalls + 1));
+    }
+
+    await tester.scrollUntilVisible(find.text('앱 정보').hitTestable(), 180);
+    await tester.pumpAndSettle();
+    final download = find.text('Android 앱 다운로드');
+    expect(download, kIsWeb ? findsOneWidget : findsNothing);
+    if (kIsWeb) {
+      await tapLink(download);
+      expect(
+        opened.single.toString(),
+        'https://github.com/wkreho/geubsik/releases/latest/download/geubsik.apk',
+      );
+      expect(find.byType(SnackBar), findsOneWidget);
+      ScaffoldMessenger.of(tester.element(download)).removeCurrentSnackBar();
+      await tester.pumpAndSettle();
+    }
+    await tapLink(find.text('소스 코드 및 업데이트 내역'));
+    expect(
+      opened.last.toString(),
+      'https://github.com/wkreho/geubsik/releases',
+    );
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.text('앱 정보'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('첫 연결 실패와 재시도, 등록된 빈 날·누락일·오늘 복귀', (tester) async {
     var online = false;
     final c = controller(
