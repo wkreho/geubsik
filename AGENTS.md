@@ -55,9 +55,13 @@ Phase 4-2에서는 표시 계층에서 첫 실제 항목의 메뉴 줄을 판별
 ## Phase 5-1 웹 배포
 
 - `.github/workflows/deploy-web.yml`은 `main`의 `app/**` 또는 워크플로 자체가 변경될 때 실행한다. 수동 배포는 **Actions → Deploy Flutter Web → Run workflow → main**에서 실행한다. 저장소 관리자가 **Settings → Pages → Source → GitHub Actions**를 설정한다.
-- Ubuntu 빌드 작업은 Flutter 3.32.8 stable과 `app/pubspec.lock`을 사용한다. `--base-href /geubsik/`로 빌드하며 원본 HTML에는 Flutter 플레이스홀더를 유지한다. 빌드 결과 검사 후 `app/build/web`만 artifact로 전달하고 배포 작업이 `github-pages`에 게시한다. 빌드 결과물은 커밋하지 않는다. [예정 사이트](https://wkreho.github.io/geubsik/)
+- Ubuntu 빌드 작업은 Flutter 3.32.8 stable과 `app/pubspec.lock`을 사용한다. `--base-href /geubsik/`로 빌드하며 원본 HTML에는 Flutter 플레이스홀더를 유지한다. 빌드 결과 검사 후 `app/build/web`만 artifact로 전달하고 배포 작업이 `github-pages`에 게시한다. 빌드 결과물은 커밋하지 않는다. [급식 웹사이트](https://wkreho.github.io/geubsik/)
 - 급식 수집 워크플로·외부 예약과 웹 배포를 독립적으로 유지한다. 앱은 기존 Raw URL로 데이터를 조회한다. `--pwa-strategy=none`을 사용하며 실행 중 급식 캐시와 오프라인 웹 시작을 구분한다. Pages와 Raw의 HTTP 캐시로 변경 반영이 늦어질 수 있다.
-- Phase 5-1은 워크플로 구현 단계로 실제 release 빌드·Pages 배포·사이트 로딩은 미검증이다. Android APK·iOS 배포는 후속 단계다.
+- Phase 5-1 Pages 배포와 실제 사이트 접속은 사용자가 확인했다. Android APK·iOS 배포는 후속 단계다.
+
+## Phase 5-2 급식표 식사 행
+
+급식표에서 펼칠 수 있는 행의 `InkWell`에만 물결·누름·호버 배경을 끈다. 식사별 즉시 전환, 48dp 최소 높이, 포인터와 키보드 포커스를 유지한다. SDK 캐시 쓰기 제한으로 변경 후 Flutter 분석·테스트는 미실행이며 실제 브라우저 확인도 남아 있다.
 
 ## 협업
 

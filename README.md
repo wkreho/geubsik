@@ -6,7 +6,7 @@
 
 로컬 작업 경로는 `C:\Users\SEC\Documents\GitHub\geubsik`, 현재 브랜치는 `main`이다. [GitHub 저장소](https://github.com/wkreho/geubsik)
 
-Phase 1~3에서 수집기, GitHub 데이터 갱신, Flutter 앱의 원격 조회와 캐시를 검증했다. Phase 4와 4-2에서 오늘·급식표·설정 화면과 대표 메뉴 표시를 구현했다. Phase 5-1에서 GitHub Pages 자동 배포 워크플로를 추가했다. 첫 웹 릴리스 빌드와 실제 배포는 확인 전이다.
+Phase 1~3에서 수집기, GitHub 데이터 갱신, Flutter 앱의 원격 조회와 캐시를 검증했다. Phase 4와 4-2에서 오늘·급식표·설정 화면과 대표 메뉴 표시를 구현했다. Phase 5-1에서 사용자가 GitHub Pages 배포와 실제 사이트 접속을 확인했다.
 
 ### 2026-11-26 로컬 검증 결과
 
@@ -128,9 +128,11 @@ Phase 4-2에서는 첫 실제 메뉴 항목의 모든 메뉴 줄을 라이트 `#
 
 Phase 4-2의 Flutter 테스트는 총 21개다. 최종 정적 분석·테스트·Chrome 시각 검증 결과는 아직 기록되지 않았다.
 
+Phase 5-2에서는 급식표 식사 행의 클릭 물결과 누름·호버 배경을 제거했다. 행을 누르면 메뉴와 화살표가 즉시 전환되고 키보드 포커스 표시는 유지된다. 변경 후 정적 분석·위젯 테스트와 브라우저 조작 확인은 아직 수행하지 않았다.
+
 ## Flutter Web 배포
 
-예정 사이트는 [급식 웹사이트](https://wkreho.github.io/geubsik/)다. 웹 페이지는 Flutter 앱을 제공하고, 앱은 실행 시 기존 GitHub Raw URL에서 메뉴를 읽는다. `update-meals.yml`이 `data/meals.json`만 갱신하면 웹 빌드는 실행되지 않는다.
+웹 페이지는 Flutter 앱을 제공하고, 앱은 실행 시 기존 GitHub Raw URL에서 메뉴를 읽는다. `update-meals.yml`이 `data/meals.json`만 갱신하면 웹 빌드는 실행되지 않는다. [급식 웹사이트](https://wkreho.github.io/geubsik/)
 
 1. 저장소의 **Settings → Pages → Build and deployment → Source**에서 **GitHub Actions**를 선택한다.
 2. `main`에 `app/**` 또는 `.github/workflows/deploy-web.yml` 변경을 푸시하면 **Deploy Flutter Web**이 실행된다. 수동으로 배포하려면 **Actions → Deploy Flutter Web → Run workflow**에서 `main`을 선택한다.

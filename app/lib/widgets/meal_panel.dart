@@ -143,6 +143,9 @@ class _MealPanelState extends State<MealPanel> {
           message: '${kind.label} ${expanded ? '접기' : '전체 메뉴 보기'}',
           child: InkWell(
             onTap: toggle,
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             child: row,
           ),
