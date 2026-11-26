@@ -128,7 +128,42 @@ Phase 4-2에서는 첫 실제 메뉴 항목의 모든 메뉴 줄을 라이트 `#
 
 Phase 4-2의 Flutter 테스트는 총 21개다. 최종 정적 분석·테스트·Chrome 시각 검증 결과는 아직 기록되지 않았다.
 
-Phase 5-2에서는 급식표 식사 행의 클릭 물결과 누름·호버 배경을 제거했다. 행을 누르면 메뉴와 화살표가 즉시 전환되고 키보드 포커스 표시는 유지된다. 변경 후 정적 분석·위젯 테스트와 브라우저 조작 확인은 아직 수행하지 않았다.
+Phase 5-2에서는 급식표 식사 행의 클릭 물결과 누름·호버 배경을 제거했다. 행을 누르면 메뉴와 화살표가 즉시 전환되고 키보드 포커스 표시는 유지된다. 사용자가 동작을 확인하고 커밋·푸시했다.
+
+### Phase 5-3 앱 아이콘
+
+확정된 수저 아이콘 원본은 `app/branding/app_icon.png`(416×416)이다. Android에는 5개 밀도의 런처 아이콘과 배경·수저 전경을 분리한 적응형 아이콘을 적용했다. Android 13 이상에서 테마 아이콘을 켜면 단색 수저 레이어를 사용한다. iOS는 기존 AppIcon 규격에 맞춰 불투명 PNG 15개를 사용한다. 웹은 일반·마스크용 아이콘에 원본 구도를 유지하고, 파비콘만 바깥 여백을 줄여 작은 탭에서도 수저를 구분할 수 있게 했다.
+
+PNG 규격과 참조 경로, Android·웹 마스크 안전 영역, 16px·32px 파비콘을 로컬에서 확인했다. 새 아이콘의 배포 후 브라우저 표시와 실제 기기 홈 화면 표시는 아직 확인하지 않았다.
+
+### Android Release APK
+
+Android Release는 저장소 밖에 보관한 앱 전용 JKS로 서명한다. PowerShell에서 아래 명령으로 예시 파일을 최초 한 번 복사하고 두 비밀번호를 직접 입력한다. 이미 설정 파일이 있으면 편집기에서 기존 파일이 열린다.
+
+```powershell
+Set-Location 'C:\Users\SEC\Documents\GitHub\geubsik\app'
+if (!(Test-Path android/key.properties)) {
+    Copy-Item android/key.properties.example android/key.properties
+}
+notepad android/key.properties
+```
+
+`storeFile`은 예시처럼 슬래시(/)가 들어간 절대 경로로 적고 UTF-8(BOM 없음)로 저장한다. 비밀번호에 실제 역슬래시가 들어가면 Java properties 문법에 맞춰 `\\`로 입력한다. 실제 설정 파일과 서명키는 Git에서 제외하며 비밀번호를 문서·로그·GitHub Secrets에 남기지 않는다. 서명키와 비밀번호는 복구할 수 있도록 안전하게 백업한다.
+
+같은 `app` 폴더에서 다음 명령으로 학생들이 설치할 단일 Universal APK를 빌드한다.
+
+```powershell
+flutter build apk --release --no-pub
+```
+
+빌드에 성공하면 저장소 기준 `app/build/app/outputs/flutter-apk/app-release.apk`가 생성된다. 같은 PowerShell에서 설치된 Android SDK Build Tools로 서명과 인증서를 확인한다.
+
+```powershell
+$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
+& "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.0.0\apksigner.bat" verify --verbose --print-certs .\build\app\outputs\flutter-apk\app-release.apk
+```
+
+`Verifies`와 종료 코드 0을 확인하고, 출력된 서명자 인증서 SHA-256 지문을 배포용 인증서 지문과 대조한다. 첫 배포 버전은 `app/pubspec.yaml`의 `1.0.0+1`이다. 후속 업데이트는 동일한 applicationId와 서명키를 사용하고 `+` 뒤의 Android versionCode를 이전 배포보다 높인다. 현재 서명 구성과 Git 제외 규칙은 정적으로 확인했으며, 실제 APK 빌드·서명 검증·기기 설치는 아직 수행하지 않았다.
 
 ## Flutter Web 배포
 

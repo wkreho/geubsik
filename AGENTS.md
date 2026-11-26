@@ -61,7 +61,21 @@ Phase 4-2에서는 표시 계층에서 첫 실제 항목의 메뉴 줄을 판별
 
 ## Phase 5-2 급식표 식사 행
 
-급식표에서 펼칠 수 있는 행의 `InkWell`에만 물결·누름·호버 배경을 끈다. 식사별 즉시 전환, 48dp 최소 높이, 포인터와 키보드 포커스를 유지한다. SDK 캐시 쓰기 제한으로 변경 후 Flutter 분석·테스트는 미실행이며 실제 브라우저 확인도 남아 있다.
+급식표에서 펼칠 수 있는 행의 `InkWell`에만 물결·누름·호버 배경을 끈다. 식사별 즉시 전환, 48dp 최소 높이, 포인터와 키보드 포커스를 유지한다. 사용자가 수정 동작을 확인하고 커밋·푸시했다. 변경 후 Flutter 분석·테스트 결과는 별도로 확인되지 않았다.
+
+## Phase 5-3 플랫폼 아이콘
+
+- 기준 파일은 `app/branding/app_icon.png`(416×416 RGB)다. 각 플랫폼 PNG는 원본을 Lanczos로 리샘플링한다.
+- Android는 기존 `@mipmap/ic_launcher`를 사용한다. API 26부터 적응형 아이콘에 원본 배경색 `#BECEE3`과 투명 수저 전경을 사용한다. API 33부터 같은 실루엣의 단색 레이어도 제공한다.
+- iOS는 `AppIcon.appiconset/Contents.json`의 19개 항목에 불투명 정사각형 PNG 15개를 연결한다. 웹은 기존 상대 경로로 일반·마스크용 192px·512px 아이콘과 32px 파비콘을 제공한다. 파비콘은 원본 중앙의 272×272 영역을 사용한다.
+- PNG 해상도·디코딩, 리소스 참조, Android·웹 안전 영역과 파비콘 축소본을 확인했다. 실제 기기와 배포 후 브라우저 표시는 미검증이다.
+
+## Phase 5-4 Android Release 서명
+
+- 사용자가 생성한 전용 JKS는 저장소 밖에 보관한다. 사용자가 `app/android/key.properties.example`을 같은 폴더의 `key.properties`로 복사해 두 비밀번호를 직접 입력한다. 실제 설정 파일·서명키는 Git에서 제외하고 비밀번호를 코드·로그·문서·GitHub Secrets에 남기지 않는다.
+- Android 앱 모듈의 Kotlin DSL은 Release에 전용 서명 구성을 연결한다. 필수 설정이 없으면 Release APK 패키징이 실패한다. Android Debug와 GitHub Pages 웹 빌드에는 Release 서명 정보가 필요 없다.
+- `app/`에서 `flutter build apk --release --no-pub`로 Universal APK를 생성한다. 저장소 기준 출력 경로는 `app/build/app/outputs/flutter-apk/app-release.apk`다. 배포 전 README의 `apksigner verify --verbose --print-certs` 명령으로 서명과 인증서를 확인한다.
+- 첫 배포는 `1.0.0+1`이다. 이후 업데이트에는 같은 applicationId와 서명키를 사용하고 `app/pubspec.yaml`에서 versionCode를 올린다. Phase 5-4에서는 구성만 정적으로 검토했으며 실제 APK 빌드·서명 검증·설치는 미확인이다.
 
 ## 협업
 

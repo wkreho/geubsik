@@ -1,8 +1,46 @@
+import java.io.IOException
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val releasePropertiesFile = rootProject.file("key.properties")
+val releaseProperties = Properties()
+val releaseSigningError = try {
+    if (!releasePropertiesFile.isFile) {
+        "Create app/android/key.properties from key.properties.example."
+    } else {
+        releasePropertiesFile.reader(Charsets.UTF_8).use { releaseProperties.load(it) }
+        val missing = listOf("storePassword", "keyPassword", "keyAlias", "storeFile")
+            .filter { releaseProperties.getProperty(it).isNullOrBlank() }
+        when {
+            missing.isNotEmpty() -> "Missing in app/android/key.properties: ${missing.joinToString()}."
+            releaseProperties.getProperty("storePassword") == "YOUR_KEYSTORE_PASSWORD" ||
+                releaseProperties.getProperty("keyPassword") == "YOUR_KEY_PASSWORD" ->
+                "Replace the example passwords in app/android/key.properties."
+            else -> null
+        }
+    }
+} catch (e: IOException) {
+    "Cannot read app/android/key.properties."
+} catch (e: IllegalArgumentException) {
+    "Invalid properties syntax in app/android/key.properties. Use forward slashes in storeFile."
+}
+
+val checkReleaseSigning = tasks.register("checkReleaseSigning") {
+    val problem = releaseSigningError
+    doLast {
+        if (problem != null) throw GradleException("Android release signing: $problem")
+    }
+}
+
+// Also guard packaging when AGP would otherwise produce an unsigned APK.
+tasks.matching { it.name == "packageRelease" || it.name == "validateSigningRelease" }.configureEach {
+    dependsOn(checkReleaseSigning)
 }
 
 android {
@@ -30,11 +68,21 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseSigningError == null) {
+                storeType = "JKS"
+                storeFile = rootProject.file(releaseProperties.getProperty("storeFile"))
+                storePassword = releaseProperties.getProperty("storePassword")
+                keyAlias = releaseProperties.getProperty("keyAlias")
+                keyPassword = releaseProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
