@@ -4,9 +4,17 @@
 
 한동글로벌학교 학생이 한국 시각 기준 오늘 급식을 빠르게 볼 수 있도록 한다. 학교의 기존 입력 흐름만 사용하고 학생·운영자에게 메뉴 재입력을 요구하지 않는다.
 
-## 현재 구현
+## 유지보수 기준
 
-Phase 1은 `scripts/fetch_meals.py`, `tests/test_fetch_meals.py`, `.github/workflows/update-meals.yml`에 들어 있다. Python 3.12가 공개 XLSX를 인증 없이 읽고 openpyxl로 분석한다. 워크플로는 `workflow_dispatch`로 실행하며 정상 수집 후 변경된 JSON만 기본 토큰으로 푸시한다.
+웹과 Android의 초기 개발·정식 배포를 완료했다. 향후 작업은 운영 장애나 요청된 변경의 영향 범위에 맞춘다. 급식 갱신, 웹 배포, Android 배포는 각각 독립적으로 운영한다. [운영 웹사이트](https://wkreho.github.io/geubsik/) · [최신 Android APK](https://github.com/wkreho/geubsik/releases/latest/download/geubsik.apk) · [버전별 Release](https://github.com/wkreho/geubsik/releases)
+
+- 최종 검증은 사용자가 Phase 5-8-1 수정 후 수행했다. Flutter 정적 분석과 전체 테스트 22/22개가 통과했고 Chrome에서 앱 정보, 외부 링크와 실제 APK 다운로드를 확인했다. 변경 사항은 커밋·푸시했다.
+- 공개 Android v1.0.0 이후의 소스에는 앱 정보 카드와 Releases 링크가 있다. APK 다운로드 항목은 웹에서만 표시한다. 공개 APK에는 카드가 없으며, 웹만 변경할 때에는 Android 버전을 유지한다.
+- iOS는 프로젝트와 아이콘만 구성했다. 실제 빌드·설치·배포는 진행하지 않았다.
+
+## 급식 수집과 데이터 계약
+
+`scripts/fetch_meals.py`와 `tests/test_fetch_meals.py`는 Python 3.12와 openpyxl을 사용한다. `.github/workflows/update-meals.yml`은 공개 XLSX를 인증 없이 읽고 검증에 성공한 뒤 변경된 JSON만 GitHub 기본 토큰으로 푸시한다.
 
 원본은 [HIS 식단표 2026](https://docs.google.com/spreadsheets/d/1-H15GqsbE3APbGec7rNbw7_Cvm1UBq4mQpVF-Nw_74c)이다. ID는 1-H15GqsbE3APbGec7rNbw7_Cvm1UBq4mQpVF-Nw_74c, 내보내기 경로는 /export?format=xlsx 이다. 원본은 읽기 전용이며 XLSX 전체를 저장소에 남기지 않는다.
 
@@ -23,24 +31,20 @@ Phase 1은 `scripts/fetch_meals.py`, `tests/test_fetch_meals.py`, `.github/workf
 - 매번 전체를 재생성하여 숨김·삭제·수정·재표시를 반영한다. 과거 버전은 Git 기록에 남을 수 있다. 파싱 실패·날짜 충돌은 기존 파일을 보존한다. 전체 빈 결과의 보호 및 명시적 예외는 README를 따른다.
 - 다운로드·파싱·저장을 분리한다. 새 구조에 맞춰 수정할 때 검증을 조용히 생략하거나 기존 데이터에 누적하지 않는다.
 
-## 검증 결과 및 현재 단계
+## 수집 운영
 
-2026-11-26 기준 Phase 1 로컬 구현 및 검증을 완료했다. 전체 오프라인 단위 테스트는 16/16 통과했다. Codex에서는 DNS 이름 해석 오류(11001)로 수집이 중단됐다. 사용자 Windows PowerShell에서 `docs.google.com` DNS와 HTTPS 443 연결을 확인한 후, 첫 실행에서 누락된 `openpyxl` 등 의존성을 `python -m pip install -r requirements.txt`로 설치했다. 이어서 `python -B scripts/fetch_meals.py`로 실제 XLSX 비인증 다운로드, 워크북 파싱, 최초 `data/meals.json` 생성을 완료했다. Codex 환경의 DNS 제한은 남아 있다.
+학교가 자동 추출·공개 재배포를 허용했다. 최초 검증에서 Python 테스트 16/16개가 통과했고, 사용자 PowerShell과 GitHub Actions에서 실제 XLSX를 파싱했다. 최초 자동 갱신 커밋은 `99e848d`이며 탭·날짜 집계는 README의 최초 수집 기록을 따른다.
 
-- 전체 탭 54개 중 숨김 47개, 표시 7개였다. 표시 탭 중 무관한 탭은 0개, 빈 주간표는 4개였으며 3개 주간표를 포함했다.
-- 2026-11-16 ~ 2026-12-06의 21일 중 17일에 메뉴가 있고 나머지 4일은 세 식사가 모두 빈 배열이다. 최초 파일의 `schemaVersion`은 1, `updatedAt`은 `2026-11-26T00:29:45.027097+09:00`이다.
+cron-job.org가 30분마다 GitHub의 `workflow_dispatch` API를 호출한다. 외부 예약용 fine-grained PAT는 이 저장소의 Actions 읽기·쓰기와 필수 Metadata 읽기로 제한한다. 만료 전에 갱신해 cron-job.org의 인증값을 교체하고 요청 결과와 Actions 실행 기록을 확인한다. 인증값을 저장소나 로그에 남기지 않는다.
 
-Phase 2에서 학교의 자동 추출·공개 재배포 허용을 확인했다. GitHub Actions 수동 실행으로 실제 다운로드·파싱, 최초 JSON 자동 커밋·푸시(`99e848d`)를 검증했다. 내장 schedule에 실행 기록이 생성되지 않아 cron-job.org의 30분 주기 POST → `workflow_dispatch`로 전환했다. 사용자가 외부 예약 활성화와 TEST RUN HTTP 200을 확인했다. Fine-grained PAT는 해당 저장소의 Actions 읽기·쓰기 및 필수 Metadata 읽기로 제한하고 만료 전에 교체한다. 실패 시 외부 서비스의 요청 기록·대상 브랜치·권한·만료를 확인한 후 Actions 로그를 확인한다. 인증값을 조회하거나 기록하지 않는다.
+## 앱 데이터와 캐시
 
-## Phase 3 앱 구현
-
-- 기존 `app/`의 Android·iOS·Web 프로젝트를 사용한다. Flutter 3.32.8, Dart 3.8.1, http 1.6.0, shared_preferences 2.5.3, flutter_lints 5.0.0 및 SDK의 flutter_test를 기준으로 한다.
+- 기존 `app/`의 Android·iOS·Web 프로젝트를 사용한다. Flutter 3.32.8, Dart 3.8.1, http 1.6.0, shared_preferences 2.5.3, url_launcher 6.3.2, flutter_lints 5.0.0 및 SDK의 flutter_test를 기준으로 한다.
 - 공통 데이터 URL은 [GitHub Raw 급식표](https://raw.githubusercontent.com/wkreho/geubsik/main/data/meals.json)이다. 앱은 `MealRepository`를 통해 UTF-8 JSON을 읽고 `MealSnapshot`·`DailyMeals`로 검증한다. 수집기는 독립적으로 운영한다.
 - 한국 날짜는 `KoreaDate`로 계산한다. 시각을 UTC+09:00 기준 날짜로 변환한 후 달력 날짜끼리 이동한다. 메뉴 미등록과 날짜 미포함을 구분한다.
 - `MealController`(ChangeNotifier)가 유효한 캐시를 먼저 표시하고 중복 요청을 합친다. 검증한 응답은 빈 스냅샷도 포함해 전체 교체하고 `SharedPreferencesAsync`에 저장한다. 잘못된 응답은 캐시를 보존하고, 저장 실패 시에도 원격 데이터를 표시한다.
-- 사용자가 Phase 3 정적 분석 및 Flutter 테스트 13개 통과, 실제 Chrome 원격 데이터·날짜 이동·갱신·오프라인 캐싱을 확인했다.
 
-## Phase 4 화면과 설정
+## 화면과 설정
 
 오늘·급식표·설정 탭은 같은 `MealController`를 사용한다. 오늘은 모바일 세로·넓은 화면 가로 식사 카드로 표시한다. 여러 날짜는 기간별 목록에서 펼치거나 날짜 상세로 이동한다. 한국 날짜가 바뀌면 오늘을 갱신한다.
 
@@ -48,41 +52,36 @@ Phase 2에서 학교의 자동 추출·공개 재배포 허용을 확인했다. 
 
 `app/`에서 `flutter analyze --no-pub` 통과 후 `flutter test --no-pub`를 실행하고 `flutter run -d chrome --no-pub`로 확인한다. 실제 UI의 좁은 폭·다크 모드·오프라인·재실행 설정 복원을 검증한다.
 
-Phase 4 최초 구현은 사용자가 중괄호 린트를 수정한 뒤 정적 분석과 Flutter 테스트 20/20개를 통과했다. Chrome에서 모바일·데스크톱 크기의 오늘·급식표·설정·캘린더 화면을 확인했다.
+대표 메뉴는 첫 실제 항목의 메뉴 줄을 공통 테마로 강조하고 특식 안내는 별도로 표시한다. 급식표의 접힌 식사 행은 아이콘·이름·대표 메뉴를 함께 표시한다. 각 행의 `InkWell`은 클릭 물결과 누름·호버 배경을 끄고, 48dp 최소 높이와 키보드 포커스를 유지한다. 펼치면 해당 식사의 전체 메뉴와 화살표가 즉시 전환된다.
 
-Phase 4-2에서는 표시 계층에서 첫 실제 항목의 메뉴 줄을 판별하고 공통 테마의 대표 메뉴 스타일을 사용한다. 특식 안내는 별도 스타일을 유지한다. 급식표 접힘 행은 식사 아이콘·이름·대표 메뉴를 함께 표시하며 추가 메뉴가 있으면 해당 행에서 펼친다. 오늘 카드와 설정 간격 및 날짜 제목 폭을 조정했다. 테스트는 21개이며 최종 분석·테스트·Chrome 검증 결과는 미확인이다.
-
-## Phase 5-1 웹 배포
+## 웹 자동 배포
 
 - `.github/workflows/deploy-web.yml`은 `main`의 `app/**` 또는 워크플로 자체가 변경될 때 실행한다. 수동 배포는 **Actions → Deploy Flutter Web → Run workflow → main**에서 실행한다. 저장소 관리자가 **Settings → Pages → Source → GitHub Actions**를 설정한다.
 - Ubuntu 빌드 작업은 Flutter 3.32.8 stable과 `app/pubspec.lock`을 사용한다. `--base-href /geubsik/`로 빌드하며 원본 HTML에는 Flutter 플레이스홀더를 유지한다. 빌드 결과 검사 후 `app/build/web`만 artifact로 전달하고 배포 작업이 `github-pages`에 게시한다. 빌드 결과물은 커밋하지 않는다. [급식 웹사이트](https://wkreho.github.io/geubsik/)
 - 급식 수집 워크플로·외부 예약과 웹 배포를 독립적으로 유지한다. 앱은 기존 Raw URL로 데이터를 조회한다. `--pwa-strategy=none`을 사용하며 실행 중 급식 캐시와 오프라인 웹 시작을 구분한다. Pages와 Raw의 HTTP 캐시로 변경 반영이 늦어질 수 있다.
-- Phase 5-1 Pages 배포와 실제 사이트 접속은 사용자가 확인했다. iOS 배포는 후속 단계다.
+- 웹 장애는 Actions의 빌드 → Pages 배포 로그 → 게시 주소의 리소스 로딩 순서로 확인한다. 급식 데이터만 오래됐다면 수집 워크플로와 Raw JSON을 확인한다.
 
-## Phase 5-2 급식표 식사 행
-
-급식표에서 펼칠 수 있는 행의 `InkWell`에만 물결·누름·호버 배경을 끈다. 식사별 즉시 전환, 48dp 최소 높이, 포인터와 키보드 포커스를 유지한다. 사용자가 수정 동작을 확인하고 커밋·푸시했다. 변경 후 Flutter 분석·테스트 결과는 별도로 확인되지 않았다.
-
-## Phase 5-3 플랫폼 아이콘
+## 플랫폼 아이콘
 
 - 기준 파일은 `app/branding/app_icon.png`(416×416 RGB)다. 각 플랫폼 PNG는 원본을 Lanczos로 리샘플링한다.
 - Android는 기존 `@mipmap/ic_launcher`를 사용한다. API 26부터 적응형 아이콘에 원본 배경색 `#BECEE3`과 투명 수저 전경을 사용한다. API 33부터 같은 실루엣의 단색 레이어도 제공한다.
 - iOS는 `AppIcon.appiconset/Contents.json`의 19개 항목에 불투명 정사각형 PNG 15개를 연결한다. 웹은 기존 상대 경로로 일반·마스크용 192px·512px 아이콘과 32px 파비콘을 제공한다. 파비콘은 원본 중앙의 272×272 영역을 사용한다.
-- PNG 해상도·디코딩, 리소스 참조, Android·웹 안전 영역과 파비콘 축소본을 확인했다. 실제 기기와 배포 후 브라우저 표시는 미검증이다.
+- PNG 해상도·디코딩, 리소스 참조, Android·웹 안전 영역과 파비콘 축소본을 확인했다.
 
-## Phase 5-4 Android Release 서명
+## Android 서명과 수동 배포
 
 - 사용자가 생성한 전용 JKS는 저장소 밖에 보관한다. 사용자가 `app/android/key.properties.example`을 같은 폴더의 `key.properties`로 복사해 두 비밀번호를 직접 입력한다. 실제 설정 파일·서명키는 Git에서 제외하고 비밀번호를 코드·로그·문서·GitHub Secrets에 남기지 않는다.
 - Android 앱 모듈의 Kotlin DSL은 Release에 전용 서명 구성을 연결한다. 필수 설정이 없으면 Release APK 패키징이 실패한다. Android Debug와 GitHub Pages 웹 빌드에는 Release 서명 정보가 필요 없다.
 - `app/`에서 `flutter build apk --release --no-pub`로 Universal APK를 생성한다. 저장소 기준 출력 경로는 `app/build/app/outputs/flutter-apk/app-release.apk`다. 배포 전 README의 `apksigner verify --verbose --print-certs` 명령으로 서명과 인증서를 확인한다.
 - 첫 공개 버전은 v1.0.0(`1.0.0+1`, 약 20.5MB)이다. 사용자가 Universal APK 빌드, v1·v2 서명 검증, 배포용 SHA-256 지문 대조와 실제 스마트폰 설치·기능 검증을 완료했다.
 
-## APK 다운로드 및 유지보수
+- 다음 Android 공개 배포 시 `app/pubspec.yaml`의 versionName과 versionCode를 모두 높인다. 동일한 applicationId `com.wkreho.geubsik`와 비공개 배포키를 유지하고 이전 버전에서 실기기 업데이트를 확인한다. 검증한 APK를 새 태그의 정식 Release에 `geubsik.apk`로 첨부하고 최신으로 지정한다. 이전 버전과 첨부 파일을 보존한다.
+- `shared_preferences_android` 요구 사항에 맞춰 지정한 NDK `27.0.12077973`은 다음 Android Release 빌드에서 빌드 성공과 경고 해소를 확인한다.
 
-- 설정의 앱 정보는 확정 아이콘을 사용한다. 모든 플랫폼에서 Releases로 연결하고 APK 링크는 웹에서만 표시한다. [운영 웹사이트](https://wkreho.github.io/geubsik/) · [GitHub Releases](https://github.com/wkreho/geubsik/releases) · [최신 APK](https://github.com/wkreho/geubsik/releases/latest/download/geubsik.apk)
-- 다음 Android 공개 배포 시 `app/pubspec.yaml`의 versionName과 versionCode를 모두 높인다. 웹만 변경할 때는 올리지 않는다. 동일한 applicationId `com.wkreho.geubsik`와 비공개 배포키로 수동 빌드·서명 검증 후 실기기 업데이트를 확인한다. 매 버전 새 태그와 Release를 만들고 `geubsik.apk`를 첨부해 최신 정식 Release로 지정한다. 이전 첨부 파일은 보존하고 APK를 main이나 웹 빌드에 포함하지 않는다.
-- Android NDK는 `shared_preferences_android` 요구 버전인 `27.0.12077973`으로 지정했다. 다음 Android 빌드에서 경고 해소를 확인한다. 실제 브라우저 다운로드는 미검증이다.
-- Phase 5-8 사용자 검증에서 정적 분석은 통과했고 테스트는 21개 통과·1개 실패였다. Phase 5-8-1에서 설정 링크 테스트가 각 링크를 실제로 탭할 수 있을 때까지 스크롤하고 호출 횟수를 확인한 뒤 URL을 검사하도록 수정했다. 수정 후 Flutter 분석·테스트는 SDK 캐시 쓰기 제한으로 재실행하지 않았다.
+## 장애 점검
+
+- 다운로드가 실패하면 최신 정식 Release의 첨부 파일명이 `geubsik.apk`인지 확인한다. 기존 앱 위에 업데이트가 실패하면 applicationId, 서명 인증서 지문, versionCode를 이전 배포와 대조한다.
+
 - 급식 갱신 실패 시 cron-job.org 요청과 Actions 로그부터 확인한다. 학교 양식이 바뀌면 주간 날짜·식사 경계·안내문 위치를 대조하고 변경 사례를 재현하는 테스트를 추가한 뒤 파서를 수정한다. 정상 JSON은 보존하고 검증 후 갱신한다.
 
 ## 협업

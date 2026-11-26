@@ -4,15 +4,21 @@
 
 [웹에서 급식 보기](https://wkreho.github.io/geubsik/) · [최신 Android APK 다운로드](https://github.com/wkreho/geubsik/releases/latest/download/geubsik.apk) · [버전별 배포 및 업데이트 내역](https://github.com/wkreho/geubsik/releases)
 
-## 현재 단계와 구성
+## 배포 및 검증 상태
 
-로컬 작업 경로는 `C:\Users\SEC\Documents\GitHub\geubsik`, 현재 브랜치는 `main`이다. [GitHub 저장소](https://github.com/wkreho/geubsik)
+초기 개발과 웹·Android 정식 배포를 완료하고 유지보수 단계로 전환했다. 2026-11-26 사용자가 Phase 5-8-1 수정 후 Flutter 정적 분석 통과와 전체 테스트 **22/22 통과**를 확인하고 변경 사항을 커밋·푸시했다.
 
-Phase 1~3에서 수집기, GitHub 데이터 갱신, Flutter 앱의 원격 조회와 캐시를 검증했다. Phase 4와 4-2에서 오늘·급식표·설정 화면과 대표 메뉴 표시를 구현했다. Phase 5-1에서 사용자가 GitHub Pages 배포와 실제 사이트 접속을 확인했다.
+| 플랫폼 | 현재 배포 상태와 검증 범위 |
+|---|---|
+| 웹 | GitHub Pages에서 운영한다. 사용자가 Chrome에서 설정의 앱 정보, GitHub Releases 링크, 최신 APK 다운로드를 확인했다. |
+| Android | 공개 버전은 v1.0.0(`1.0.0+1`, Universal APK, 약 20.5MB)이다. `apksigner` v1·v2 서명 검증, 배포 인증서 SHA-256 지문 일치, 실제 스마트폰 설치·기능 검증을 완료했다. |
+| iOS | 프로젝트 구성과 앱 아이콘 적용만 완료했다. 실제 빌드·설치·배포는 진행하지 않았다. |
 
-### 2026-11-26 로컬 검증 결과
+현재 소스에는 v1.0.0 공개 후 추가한 설정의 앱 정보 카드와 외부 링크 처리(`url_launcher` 6.3.2)가 있다. Releases 링크는 공통이고 APK 다운로드 항목은 웹 전용이다. 공개 APK에는 이 카드가 없으며, 이후 지정한 Android NDK `27.0.12077973`은 다음 Android 빌드에서 검증한다.
 
-오프라인 단위 테스트는 16/16 통과했다. Codex 환경에서는 DNS 이름 해석 오류(`getaddrinfo failed`, 11001)로 다운로드에 실패했다. 사용자 Windows PowerShell에서는 `docs.google.com` 이름 해석과 HTTPS 443 연결에 성공했다. 첫 실행에서 `openpyxl`이 없어 중단됐지만, 같은 Python 환경에 `python -m pip install -r requirements.txt`로 의존성을 설치한 뒤 `python -B scripts/fetch_meals.py`로 실제 XLSX를 인증 없이 다운로드하고 워크북을 파싱해 최초 `data/meals.json`을 생성했다. Codex 환경의 DNS 제한은 여전히 남아 있다.
+### 최초 급식 수집 기록
+
+Python 오프라인 단위 테스트 16/16개를 통과했다. 최초 수집 시 Codex에서 DNS 오류(11001)가 발생했고, 사용자 PowerShell에서 연결을 확인하고 의존성을 설치한 뒤 비인증 XLSX 다운로드·파싱과 최초 JSON 생성을 완료했다.
 
 | 항목 | 최초 수집 결과 |
 |---|---|
@@ -110,7 +116,7 @@ flutter run -d chrome --no-pub
 - `MealRepository`는 시작 시 공통 URL로 GET 요청을 보낸다. 제한 시간은 12초이며 수동 갱신은 쿼리가 붙은 URL을 사용한다.
 - `MealSnapshot`과 `DailyMeals`는 UTF-8 응답의 버전, 변경 시각, 달력 날짜와 세 식사의 배열을 검증한다. `KoreaDate`는 UTC에 9시간을 더해 한국의 오늘을 구하고 달력 날짜끼리 이동·비교한다. 날짜가 누락된 경우와 등록된 날짜의 빈 메뉴를 구분한다.
 - `MealController`는 ChangeNotifier로 캐시를 먼저 표시하고 원격 요청을 진행한다. 겹치는 갱신 요청은 하나로 합친다. 성공하면 빈 스냅샷까지 포함해 검증된 JSON 전체를 `SharedPreferencesAsync`로 교체한다. 요청 실패 시 기존 급식표를 표시하고, 저장 실패 시에도 받은 메뉴를 볼 수 있다.
-- Phase 3에서 사용자가 PowerShell의 정적 분석과 Flutter 테스트 13개를 통과했고, 실제 Chrome에서 원격 JSON, 날짜 이동, 새로고침, 오프라인 캐싱을 확인했다.
+- Phase 3에서 사용자가 Chrome에서 원격 JSON, 날짜 이동, 새로고침, 오프라인 캐싱을 확인했다.
 
 ## 화면과 설정
 
@@ -124,21 +130,15 @@ flutter run -d chrome --no-pub
 
 대표 메뉴는 특식 안내를 건너뛰고 첫 실제 메뉴 항목을 사용하며 그 항목의 여러 줄과 특식 안내를 함께 표시한다. 괄호 숨김을 끄면 원산지 등 원문을 확인할 수 있다. 표시 가공은 원본 JSON과 캐시를 변경하지 않는다. 달력의 활성 날짜는 모든 식사의 원본 메뉴를 기준으로 하고, 오늘은 항상 선택할 수 있다.
 
-모바일은 세로 카드, 넓은 웹은 가로 식사 카드를 사용한다. 급식표와 설정은 읽기 편한 최대 너비로 중앙 정렬한다. Phase 4 검증은 `app/`에서 `flutter analyze --no-pub`를 먼저 실행하고 통과하면 `flutter test --no-pub`를 실행한다. 이후 Chrome에서 테마·설정 복원, 달력, 날짜별 펼치기, 화면 폭 및 오프라인 상태를 확인한다.
+모바일은 세로 카드, 넓은 웹은 가로 식사 카드를 사용한다. 데스크톱 날짜 탐색 영역의 최대 너비는 420dp다. 첫 실제 항목의 메뉴 줄은 라이트 `#B94A4A`, 다크 `#F2A5A5`와 중간 굵기로 강조하고 특식 안내는 별도 색상으로 표시한다. 급식표의 식사 행을 누르면 메뉴와 화살표가 즉시 전환되며 키보드 포커스가 유지된다.
 
-Phase 4 최초 구현은 사용자 PowerShell에서 중괄호 린트 7건을 수정한 뒤 정적 분석을 통과했고 Flutter 테스트 20/20개가 통과했다. Chrome에서 모바일·데스크톱 너비로 오늘·급식표·설정·캘린더를 확인했다.
+화면을 수정할 때는 `app/`에서 `flutter analyze --no-pub` 통과 후 `flutter test --no-pub`를 실행한다. Chrome에서 변경된 화면을 모바일·데스크톱 너비로 확인한다.
 
-Phase 4-2에서는 첫 실제 메뉴 항목의 모든 메뉴 줄을 라이트 `#B94A4A`, 다크 `#F2A5A5`와 중간 굵기로 강조한다. 특식 안내에는 기존 강조색을 쓴다. 급식표에서 식사 행을 누르면 그 식사의 전체 메뉴를 열고 닫을 수 있다. 오늘 카드의 메뉴 간격과 설정 그룹의 여백을 넓히고 데스크톱 날짜 탐색 영역은 최대 420dp로 제한했다.
-
-Phase 4-2의 Flutter 테스트는 총 21개다. 최종 정적 분석·테스트·Chrome 시각 검증 결과는 아직 기록되지 않았다.
-
-Phase 5-2에서는 급식표 식사 행의 클릭 물결과 누름·호버 배경을 제거했다. 행을 누르면 메뉴와 화살표가 즉시 전환되고 키보드 포커스 표시는 유지된다. 사용자가 동작을 확인하고 커밋·푸시했다.
-
-### Phase 5-3 앱 아이콘
+### 앱 아이콘
 
 확정된 수저 아이콘 원본은 `app/branding/app_icon.png`(416×416)이다. Android에는 5개 밀도의 런처 아이콘과 배경·수저 전경을 분리한 적응형 아이콘을 적용했다. Android 13 이상에서 테마 아이콘을 켜면 단색 수저 레이어를 사용한다. iOS는 기존 AppIcon 규격에 맞춰 불투명 PNG 15개를 사용한다. 웹은 일반·마스크용 아이콘에 원본 구도를 유지하고, 파비콘만 바깥 여백을 줄여 작은 탭에서도 수저를 구분할 수 있게 했다.
 
-PNG 규격과 참조 경로, Android·웹 마스크 안전 영역, 16px·32px 파비콘을 로컬에서 확인했다. 새 아이콘의 배포 후 브라우저 표시와 실제 기기 홈 화면 표시는 아직 확인하지 않았다.
+PNG 규격과 참조 경로, Android·웹 마스크 안전 영역, 16px·32px 파비콘을 로컬에서 확인했다.
 
 ### Android Release APK
 
@@ -167,7 +167,7 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
 & "$env:LOCALAPPDATA\Android\Sdk\build-tools\36.0.0\apksigner.bat" verify --verbose --print-certs .\build\app\outputs\flutter-apk\app-release.apk
 ```
 
-`Verifies`와 종료 코드 0을 확인하고 서명자 인증서 SHA-256 지문을 배포용 지문과 대조한다. 공개한 v1.0.0(`1.0.0+1`, 약 20.5MB)은 사용자가 v1·v2 서명 검증, 지문 일치, 실제 스마트폰 설치와 앱 동작을 확인했다.
+`Verifies`와 종료 코드 0을 확인하고 서명자 인증서 SHA-256 지문을 기존 배포용 지문과 대조한다.
 
 **다음 Android 릴리스 절차**
 
@@ -175,9 +175,7 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
 2. 의존성 설치 후 위 명령으로 Universal APK를 빌드하고 서명·지문을 대조한다. 이번에 지정한 NDK `27.0.12077973`에서 빌드가 성공하고 기존 NDK 불일치 경고가 사라지는지 확인한다. 실제 기기에 이전 공개 버전을 설치한 상태에서 업데이트와 앱 동작을 확인한다.
 3. GitHub Releases에 새 버전 태그로 Release를 만들고 검증한 APK를 `geubsik.apk`라는 이름으로 첨부한다. 이전 Release와 첨부 파일은 보존한다. 새 버전을 최신 정식 Release로 공개한 뒤 상단의 최신 APK 링크를 눌러 파일명을 확인한다. APK는 Release에만 첨부한다.
 
-설정 하단의 **앱 정보**에서 소스 코드 및 업데이트 내역을 열 수 있다. 웹에서는 **Android 앱 다운로드**도 표시한다. 이번 변경은 공개된 v1.0.0 APK에 포함되지 않는다. 실제 브라우저 다운로드는 미검증이며, NDK 변경은 다음 Android 빌드에서 검증한다.
-
-사용자의 Phase 5-8 검증에서 Flutter 정적 분석은 통과했고, 테스트는 21개 통과·1개 실패였다. 실패한 테스트는 800×600 화면 밖의 링크를 탭해 호출 기록이 비었다. Phase 5-8-1에서 두 링크의 탭 가능 여부와 호출 횟수를 먼저 확인하도록 테스트를 수정했다. 수정 후 Flutter 분석·테스트는 SDK 캐시 쓰기 제한으로 재실행하지 않았다.
+APK 링크가 끊기면 최신 정식 Release에 첨부된 파일명이 정확히 `geubsik.apk`인지 먼저 확인한다.
 
 ## Flutter Web 배포
 
@@ -187,8 +185,8 @@ $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
 2. `main`에 `app/**` 또는 `.github/workflows/deploy-web.yml` 변경을 푸시하면 **Deploy Flutter Web**이 실행된다. 수동으로 배포하려면 **Actions → Deploy Flutter Web → Run workflow**에서 `main`을 선택한다.
 3. `build` 작업이 Ubuntu에서 Flutter 3.32.8 stable을 설치하고 `app/`에서 `flutter pub get --enforce-lockfile`과 `flutter build web --release --no-pub --base-href /geubsik/ --pwa-strategy=none`을 실행한다. 로컬 Chrome 개발에는 기존 HTML의 `$FLUTTER_BASE_HREF` 플레이스홀더를 그대로 사용한다.
 4. 빌드된 HTML의 base href와 진입 파일·리소스를 검사하고 `app/build/web`의 내용만 Pages artifact로 업로드한다. 성공하면 `deploy` 작업이 `github-pages` 환경에 게시한다. 빌드 결과물은 Git에서 제외하며 별도의 배포 브랜치나 PAT가 필요하지 않다.
-5. 첫 배포 후 Actions의 배포 URL을 열어 페이지를 새로고침하고 아이콘·화면·급식 데이터가 로드되는지 확인한다. 로컬 release 빌드는 선택 사항이다.
+5. 배포 후 Actions의 배포 URL을 열어 페이지를 새로고침하고 아이콘·화면·급식 데이터가 로드되는지 확인한다. 로컬 release 빌드는 선택 사항이다.
 
-서비스 워커의 앱 사전 캐싱은 끈다. 이미 열린 앱은 원격 요청 실패 시 정상 급식 캐시를 표시할 수 있다. 오프라인에서 웹사이트를 처음 여는 기능은 보장하지 않는다. Pages·GitHub Raw의 HTTP 캐시 때문에 앱 코드나 메뉴 변경이 늦게 보일 수 있다. iOS 앱 배포는 후속 단계다.
+서비스 워커의 앱 사전 캐싱은 끈다. 이미 열린 앱은 원격 요청 실패 시 정상 급식 캐시를 표시할 수 있다. 오프라인에서 웹사이트를 처음 여는 기능은 보장하지 않는다. Pages·GitHub Raw의 HTTP 캐시 때문에 앱 코드나 메뉴 변경이 늦게 보일 수 있다. 웹 배포가 실패하면 Actions의 빌드 및 Pages 배포 로그를 순서대로 확인한다. 배포 성공 후 화면이 비면 게시 주소의 `/geubsik/` 경로와 브라우저에서 로드에 실패한 리소스를 확인한다.
 
 [GitHub Pages 배포 워크플로 문서](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
