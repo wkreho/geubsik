@@ -1,0 +1,72 @@
+name: Deploy Flutter Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: deploy-web-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    defaults:
+      run:
+        working-directory: app
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.32.8'
+          channel: stable
+          cache: true
+
+      - uses: actions/configure-pages@v5
+
+      - name: Install locked dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build Flutter Web
+        run: flutter build web --release --no-pub --base-href /geubsik/ --pwa-strategy=none
+
+      - name: Verify Pages entry point and assets
+        run: |
+          for file in index.html flutter_bootstrap.js main.dart.js manifest.json favicon.png; do
+            test -s "build/web/$file" || { echo "::error::Missing or empty build/web/$file"; exit 1; }
+          done
+          grep -Fq '<base href="/geubsik/">' build/web/index.html
+          test -d build/web/assets
+          test -d build/web/icons
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: app/build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

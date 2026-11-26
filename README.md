@@ -6,7 +6,7 @@
 
 로컬 작업 경로는 `C:\Users\SEC\Documents\GitHub\geubsik`, 현재 브랜치는 `main`이다. [GitHub 저장소](https://github.com/wkreho/geubsik)
 
-Phase 1~3에서 수집기, GitHub 데이터 갱신, Flutter 앱의 원격 조회와 캐시를 검증했다. Phase 4는 오늘·급식표·설정 화면을 구현한 단계다. Phase 5 배포와 GitHub Pages 설정은 진행 전이다.
+Phase 1~3에서 수집기, GitHub 데이터 갱신, Flutter 앱의 원격 조회와 캐시를 검증했다. Phase 4와 4-2에서 오늘·급식표·설정 화면과 대표 메뉴 표시를 구현했다. Phase 5-1에서 GitHub Pages 자동 배포 워크플로를 추가했다. 첫 웹 릴리스 빌드와 실제 배포는 확인 전이다.
 
 ### 2026-11-26 로컬 검증 결과
 
@@ -126,10 +126,18 @@ Phase 4 최초 구현은 사용자 PowerShell에서 중괄호 린트 7건을 수
 
 Phase 4-2에서는 첫 실제 메뉴 항목의 모든 메뉴 줄을 라이트 `#B94A4A`, 다크 `#F2A5A5`와 중간 굵기로 강조한다. 특식 안내에는 기존 강조색을 쓴다. 급식표에서 식사 행을 누르면 그 식사의 전체 메뉴를 열고 닫을 수 있다. 오늘 카드의 메뉴 간격과 설정 그룹의 여백을 넓히고 데스크톱 날짜 탐색 영역은 최대 420dp로 제한했다.
 
-Phase 4-2 정적 분석·Flutter 테스트·Chrome 시각 검증은 사용자 PowerShell에서 확인할 단계다. 좁은 화면과 큰 글자에서 긴 대표 메뉴의 줄바꿈, 각 식사 행의 독립적인 펼침, 두 테마의 색을 확인한다.
+Phase 4-2의 Flutter 테스트는 총 21개다. 최종 정적 분석·테스트·Chrome 시각 검증 결과는 아직 기록되지 않았다.
 
-## Flutter Web 배포 계획
+## Flutter Web 배포
 
-앱은 공통 Raw URL에서 데이터를 받으므로 메뉴 갱신 때 앱을 재빌드할 필요가 없다. 기본 GITHUB_TOKEN으로 푸시한 커밋은 일반적인 후속 push 워크플로나 브랜치 기반 Pages 빌드를 트리거하지 않는다. Flutter Web 빌드·배포 방식은 후속 단계에서 결정한다.
+예정 사이트는 [급식 웹사이트](https://wkreho.github.io/geubsik/)다. 웹 페이지는 Flutter 앱을 제공하고, 앱은 실행 시 기존 GitHub Raw URL에서 메뉴를 읽는다. `update-meals.yml`이 `data/meals.json`만 갱신하면 웹 빌드는 실행되지 않는다.
 
-[GitHub 워크플로 트리거](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow) · [Pages 게시 소스](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
+1. 저장소의 **Settings → Pages → Build and deployment → Source**에서 **GitHub Actions**를 선택한다.
+2. `main`에 `app/**` 또는 `.github/workflows/deploy-web.yml` 변경을 푸시하면 **Deploy Flutter Web**이 실행된다. 수동으로 배포하려면 **Actions → Deploy Flutter Web → Run workflow**에서 `main`을 선택한다.
+3. `build` 작업이 Ubuntu에서 Flutter 3.32.8 stable을 설치하고 `app/`에서 `flutter pub get --enforce-lockfile`과 `flutter build web --release --no-pub --base-href /geubsik/ --pwa-strategy=none`을 실행한다. 로컬 Chrome 개발에는 기존 HTML의 `$FLUTTER_BASE_HREF` 플레이스홀더를 그대로 사용한다.
+4. 빌드된 HTML의 base href와 진입 파일·리소스를 검사하고 `app/build/web`의 내용만 Pages artifact로 업로드한다. 성공하면 `deploy` 작업이 `github-pages` 환경에 게시한다. 빌드 결과물은 Git에서 제외하며 별도의 배포 브랜치나 PAT가 필요하지 않다.
+5. 첫 배포 후 Actions의 배포 URL을 열어 페이지를 새로고침하고 아이콘·화면·급식 데이터가 로드되는지 확인한다. 로컬 release 빌드는 선택 사항이다.
+
+서비스 워커의 앱 사전 캐싱은 끈다. 이미 열린 앱은 원격 요청 실패 시 정상 급식 캐시를 표시할 수 있다. 오프라인에서 웹사이트를 처음 여는 기능은 보장하지 않는다. Pages·GitHub Raw의 HTTP 캐시 때문에 앱 코드나 메뉴 변경이 늦게 보일 수 있다. Android APK와 iOS 앱 배포는 후속 단계다.
+
+[GitHub Pages 배포 워크플로 문서](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
